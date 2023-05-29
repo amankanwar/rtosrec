@@ -1,0 +1,44 @@
+---- global ------
+volatile SemaphoreHandle_t mysem;
+
+
+void producer (void *ptr)
+{
+	xSemaphoreTake(mysem, portMAX_DELAY);
+	for(;;) {
+		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0)) {
+			xSemaphoreGive(mysem);
+			vTaskDelete(NULL);
+		}
+	}
+}
+void vApplicationIdleHook()
+{
+	SEGGER_SYSVIEW_PrintfTarget("Idle Task Run, Hook application run");
+}
+void consumer (void *ptr)
+{
+	TickType_t tick = pdMS_TO_TICKS(5);
+	vTaskDelay(tick);
+	tick = pdMS_TO_TICKS(1);
+	for(;;) {
+		xSemaphoreTake(mysem, portMAX_DELAY);
+		HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+		xSemaphoreGive(mysem);
+		vTaskDelete(NULL);
+	}
+}
+
+
+---in main----
+  mysem = xSemaphoreCreateMutex();
+
+  if (mysem == NULL) {
+	  while(1);
+  }
+
+  xTaskCreate(producer, "switch", 100, NULL, 2, NULL);
+  xTaskCreate(consumer, "led1", 100, NULL, 3, NULL);
+ // xTaskCreate(task3, "led3", 100, NULL, 3, NULL);
+ // xTaskCreate(task4, "switch", 100, NULL, 1, NULL);
+  vTaskStartScheduler();
